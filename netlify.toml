@@ -1,0 +1,6 @@
+[build]
+  command = "npm run build"
+  publish = "out"        # points to the exported static folder
+
+[build.environment]
+  NODE_VERSION = "20.14.0"git add .
