@@ -22,7 +22,11 @@ cred = credentials.Certificate(json.loads(firebase_config))
 # prevent duplicate initialization (Render fix)
 if not firebase_admin._apps:
     firebase_admin.initialize_app(cred, {
+
         "databaseURL": "https://quailiotapp-default-southeast1.firebasedatabase.app"
+
+        "databaseURL": "https://quailiotapp-default-rtdb.asia-southeast1.firebasedatabase.app/"
+
     })
 
 # ================= ROUTE =================
@@ -70,4 +74,8 @@ def predict():
 # ================= RUN SERVER (RENDER FIX) =================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
+
     app.run(host="0.0.0.0", port=port)
+
+    app.run(host="0.0.0.0", port=port)
+
