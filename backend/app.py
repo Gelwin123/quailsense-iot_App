@@ -22,7 +22,7 @@ cred = credentials.Certificate(json.loads(firebase_config))
 # prevent duplicate initialization (Render fix)
 if not firebase_admin._apps:
     firebase_admin.initialize_app(cred, {
-        "databaseURL": "https://quailiotapp-default-southeast1.firebasedatabase.app"
+        "databaseURL": "https://quailiotapp-default-rtdb.asia-southeast1.firebasedatabase.app/"
     })
 
 # ================= ROUTE =================
