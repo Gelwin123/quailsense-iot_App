@@ -52,7 +52,7 @@ const CircularGauge = ({
           fill="transparent"
           strokeWidth={stroke}
           strokeDasharray={`${circumference} ${circumference}`}
-          style={{ strokeDashoffset, transition: "0.5s" }}
+          style={{ strokeDashoffset, transition: "0.6s ease" }}
           strokeLinecap="round"
           r={normalizedRadius}
           cx={radius}
@@ -71,7 +71,6 @@ const CircularGauge = ({
         </text>
       </svg>
 
-      {/* SENSOR LABEL FONT IMPROVED */}
       <p className="text-xs font-semibold tracking-wide text-gray-600 mt-1 uppercase">
         {label} ({unit})
       </p>
@@ -91,6 +90,7 @@ export default function DashboardPage() {
   });
 
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
+  const [ammoniaML, setAmmoniaML] = useState<number | null>(null);
 
   useEffect(() => {
     const sensorsRef = ref(database, "/sensors");
@@ -110,6 +110,7 @@ export default function DashboardPage() {
         ammonia: [...prev.ammonia.slice(-MAX + 1), values.nh3 ?? 0],
       }));
 
+      setAmmoniaML(values.ammonia_ml ?? 0);
       setLastUpdate(new Date());
       setFirebaseError(null);
     });
@@ -123,148 +124,68 @@ export default function DashboardPage() {
     heat: { color: "#ef4444", max: 50, icon: Wind },
     ammonia: { color: "#eab308", max: 20, icon: AlertTriangle },
   };
-  
- const tempCurrent = data.temperature.at(-1) ?? 0;
-const humCurrent = data.humidity.at(-1) ?? 0;
-const ammoniaCurrent = data.ammonia.at(-1) ?? 0;
-const heatCurrent = data.heat.at(-1) ?? 0;
 
-const now = new Date();
-const isDisconnected =
-  !lastUpdate || now.getTime() - lastUpdate.getTime() > 10000;
+  const tempCurrent = data.temperature.at(-1) ?? 0;
+  const humCurrent = data.humidity.at(-1) ?? 0;
+  const ammoniaCurrent = data.ammonia.at(-1) ?? 0;
+  const heatCurrent = data.heat.at(-1) ?? 0;
 
-let message = "Environment stable.";
-let warning = false;
-let action = "";
+  const now = new Date();
+  const isDisconnected =
+    !lastUpdate || now.getTime() - lastUpdate.getTime() > 10000;
 
-// =========================
-// 🧠 TREND ANALYSIS
-// =========================
-const ammoniaHistory = data.ammonia;
+  let message = "Environment stable.";
+  let warning = false;
+  let action = "";
 
-const risingTrend =
-  ammoniaHistory.length >= 3 &&
-  ammoniaHistory[ammoniaHistory.length - 1] >
-    ammoniaHistory[ammoniaHistory.length - 2] &&
-  ammoniaHistory[ammoniaHistory.length - 2] >
-    ammoniaHistory[ammoniaHistory.length - 3];
+  if (isDisconnected) {
+    message = "Sensor disconnected.";
+    action = "Check ESP32 or Firebase.";
+    warning = true;
+  } else if (heatCurrent > 40 || ammoniaCurrent > 10) {
+    message = "CRITICAL ENVIRONMENT ALERT!";
+    action = "Emergency ventilation required.";
+    warning = true;
+  } else if (heatCurrent > 35) {
+    message = "Heat stress detected.";
+    action = "Turn ON cooling/ventilation.";
+    warning = true;
+  } else if (ammoniaCurrent > 6) {
+    message = "Ammonia level rising.";
+    action = "Ventilation ON.";
+    warning = true;
+  }
 
-const avgNH3 =
-  ammoniaHistory.reduce((a, b) => a + b, 0) / ammoniaHistory.length;
-
-const persistentAmmonia = avgNH3 > 6;
-
-// =========================
-// 🧠 INFERRED CONDITIONS
-// =========================
-const heatStress = heatCurrent > 35;
-const extremeHeat = heatCurrent > 40;
-const ammoniaStress = ammoniaCurrent > 6;
-const ammoniaDanger = ammoniaCurrent > 10;
-
-const wetLitterRisk =
-  humCurrent > 75 && ammoniaCurrent > 6 && heatCurrent > 35;
-
-// =========================
-// 🚨 PRIORITY LOGIC (HIGHEST FIRST)
-// =========================
-
-if (isDisconnected) {
-  message = "Sensor disconnected.";
-  action = "Check ESP32 or Firebase.";
-  warning = true;
-}
-
-// 🔴 CRITICAL EMERGENCY
-else if (extremeHeat || ammoniaDanger) {
-  message = "CRITICAL ENVIRONMENT ALERT!";
-  action = "Emergency ventilation + cooling required.";
-  warning = true;
-}
-
-// 🟠 COMBINED STRESS
-else if (heatStress && ammoniaStress) {
-  message = "Heat + Ammonia stress detected.";
-  action = "Increase ventilation immediately.";
-  warning = true;
-}
-
-// 🟡 HEAT STRESS
-else if (heatStress) {
-  message = "Heat stress detected.";
-  action = "Turn ON cooling/ventilation.";
-  warning = true;
-}
-
-// 🟡 AMMONIA STRESS
-else if (ammoniaStress) {
-  message = "Ammonia level rising.";
-  action = "Ventilation ON.";
-  warning = true;
-}
-
-// 🟡 COLD CONDITION
-else if (tempCurrent < 28) {
-  message = "Low temperature detected.";
-  action = "Heating ON.";
-  warning = true;
-}
-
-// =========================
-// 🧠 SMART INFERENCE LAYER
-// (THIS IS YOUR UPGRADE)
-// =========================
-
-// 🔵 Wet litter inference
-else if (wetLitterRisk) {
-  message = "Possible wet litter detected.";
-  action = "Check bedding moisture immediately.";
-  warning = true;
-}
-
-// 🔵 Rising ammonia trend
-else if (risingTrend && ammoniaCurrent > 6) {
-  message = "Ammonia is rising continuously.";
-  action = "Inspect ventilation and litter condition.";
-  warning = true;
-}
-
-// 🔵 Persistent ammonia problem
-else if (persistentAmmonia) {
-  message = "Persistent ammonia levels detected.";
-  action = "Perform coop cleaning and maintenance.";
-  warning = true;
-}
-
-// 🟢 NORMAL STATE
-else {
-  message = "Environment stable.";
-  action = "No action needed.";
-  warning = false;
-}
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-lime-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-lime-100 p-4 page">
       <Navbar />
 
       {/* HEADER */}
-      <div className="flex justify-between items-center mb-6 max-w-6xl mx-auto">
-        <h1 className="text-2xl font-bold text-green-900">🐤 Dashboard</h1>
+      <div className="flex justify-between items-center mb-6 max-w-6xl mx-auto header">
+        <h1 className="text-2xl font-bold text-green-900">
+          🐤 Smart Poultry Dashboard
+        </h1>
       </div>
 
-      {/* ================= SMART INSIGHT (SMALLER) ================= */}
+      {/* SMART INSIGHT */}
       <div className={`smartInsight ${warning ? "danger" : "safe"}`}>
         <div className="insightHeader">
           <div className={`dot ${warning ? "red" : "green"}`} />
           <h2>Smart Insight</h2>
         </div>
 
+        <div className="mlText">
+          🤖 ML Predicted Ammonia:{" "}
+          <b>
+            {ammoniaML !== null && ammoniaML !== undefined
+              ? `${ammoniaML.toFixed(2)} ppm`
+              : "⏳ Waiting for prediction..."}
+          </b>
+        </div>
+
         <p className="message">{message}</p>
 
-        {action && (
-          <div className="actionBox">
-            <p className="actionText">💡 {action}</p>
-          </div>
-        )}
+        {action && <div className="actionBox">💡 {action}</div>}
       </div>
 
       {/* GAUGES */}
@@ -273,9 +194,7 @@ else {
           const Icon = sensors[key as SensorKey].icon;
 
           return (
-            <div key={key} className="bg-white p-4 rounded-lg shadow">
-              
-              {/* ICON + TITLE FONT ADDED */}
+            <div key={key} className="bg-white p-4 rounded-lg shadow gaugeCard">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <Icon size={16} />
                 <span className="text-sm font-bold uppercase tracking-wide text-gray-700">
@@ -299,71 +218,95 @@ else {
         })}
       </div>
 
-      {/* ================= CSS ================= */}
+      {/* ================= UI TRANSITION + UPGRADE CSS ================= */}
       <style jsx>{`
+        /* PAGE ANIMATION */
+        .page {
+          animation: pageIn 0.6s ease-out;
+        }
+
+        @keyframes pageIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        /* HEADER FLOAT */
+        .header {
+          transition: all 0.3s ease;
+        }
+
+        .header:hover {
+          transform: translateY(-2px);
+        }
+
+        /* GAUGE CARDS */
+        .gaugeCard {
+          transition: all 0.3s ease;
+        }
+
+        .gaugeCard:hover {
+          transform: translateY(-6px);
+          box-shadow: 0 18px 35px rgba(0,0,0,0.12);
+        }
+
+        /* SMART INSIGHT */
         .smartInsight {
-          max-width: 300px;   /* SMALLER BOX */
-          margin: 0 auto 18px auto;
-          padding: 14px;
-          border-radius: 16px;
+          max-width: 340px;
+          margin: 0 auto 18px;
+          padding: 18px;
+          border-radius: 20px;
           text-align: center;
-          box-shadow: 0 10px 20px rgba(0,0,0,0.12);
-          background: white;
+
+          background: rgba(255,255,255,0.75);
+          backdrop-filter: blur(16px);
+
+          transition: all 0.4s ease;
         }
 
-        .safe {
-          background: linear-gradient(145deg, #ecfdf5, #ffffff);
+        .smartInsight:hover {
+          transform: translateY(-4px);
         }
 
-        .danger {
-          background: linear-gradient(145deg, #fef2f2, #ffffff);
-        }
-
-        .insightHeader {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 6px;
-        }
-
-        .insightHeader h2 {
-          font-size: 14px;
-          font-weight: 800;
-        }
-
+        /* DOT PULSE */
         .dot {
-          width: 9px;
-          height: 9px;
+          width: 12px;
+          height: 12px;
           border-radius: 50%;
-          animation: pulse 1.5s infinite;
+          animation: pulse 1.3s infinite;
         }
 
         .green { background: #22c55e; }
         .red { background: #ef4444; }
 
-        .message {
-          font-size: 13px;
-          color: #374151;
-          font-weight: 500;
-        }
-
-        .actionBox {
-          margin-top: 10px;
-          padding: 10px;
-          border-radius: 10px;
-          background: #f3f4f6;
-        }
-
-        .actionText {
-          font-size: 12px;
-          font-weight: 600;
-        }
-
         @keyframes pulse {
           0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.2); opacity: 0.5; }
+          50% { transform: scale(1.4); opacity: 0.5; }
           100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* ACTION BOX */
+        .actionBox {
+          margin-top: 12px;
+          padding: 12px;
+          border-radius: 14px;
+          background: rgba(243,244,246,0.8);
+          border-left: 4px solid #22c55e;
+          transition: all 0.3s ease;
+        }
+
+        .danger .actionBox {
+          border-left: 4px solid #ef4444;
+        }
+
+        /* TEXT SMOOTHNESS */
+        h1, h2, p, span {
+          transition: color 0.3s ease;
         }
       `}</style>
     </div>

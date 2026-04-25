@@ -10,34 +10,23 @@ type SensorData = {
   humidity: number;
   heat: number;
   ammonia: number;
-  time_readable?: string;
+  time: string;
+  date: string;
 };
 
 export default function HistoricalPage() {
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
-
   const [records, setRecords] = useState<SensorData[]>([]);
+  const [filtered, setFiltered] = useState<SensorData[]>([]);
+  const [selectedDate, setSelectedDate] = useState("");
 
-  const [latest, setLatest] = useState<SensorData>({
-    temperature: 0,
-    humidity: 0,
-    heat: 0,
-    ammonia: 0,
-    time_readable: "",
-  });
-
-  /* =========================
-     🔴 FIREBASE REALTIME HISTORY
-  ========================= */
   useEffect(() => {
-    const sensorRef = ref(
-      database,
-      `/sensorsHistory/${selectedDate}`
-    );
+    setSelectedDate(new Date().toISOString().split("T")[0]);
+  }, []);
 
-    const unsubscribe = onValue(sensorRef, (snapshot) => {
+  useEffect(() => {
+    const sensorRef = ref(database, "/sensorsLogs");
+
+    return onValue(sensorRef, (snapshot) => {
       const data = snapshot.val();
 
       if (!data) {
@@ -45,176 +34,339 @@ export default function HistoricalPage() {
         return;
       }
 
-      // convert Firebase object → array
-      const list: SensorData[] = Object.values(data);
+      const loaded: SensorData[] = Object.values(data);
+      const sorted = loaded.sort((a, b) => (a.time < b.time ? 1 : -1));
 
-      // 🧠 sort by time_readable (chronological order)
-      const sortedList = list.sort((a, b) => {
-        const t1 = a.time_readable ?? "";
-        const t2 = b.time_readable ?? "";
-        return t1.localeCompare(t2);
-      });
-
-      setRecords(sortedList);
-
-      // latest record
-      if (sortedList.length > 0) {
-        setLatest(sortedList[sortedList.length - 1]);
-      }
+      setRecords(sorted);
     });
+  }, []);
 
-    return () => unsubscribe();
-  }, [selectedDate]);
+  useEffect(() => {
+    if (!selectedDate) return;
+    setFiltered(records.filter((r) => r.date === selectedDate));
+  }, [selectedDate, records]);
+
+  const exportCSV = () => {
+    if (!filtered.length) return alert("No data to export");
+
+    const headers = ["Date", "Time", "Temp", "Humidity", "Heat", "Ammonia"];
+
+    const rows = filtered.map((r) => [
+      r.date,
+      r.time,
+      r.temperature,
+      r.humidity,
+      r.heat,
+      r.ammonia,
+    ]);
+
+    const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sensor-${selectedDate}.csv`;
+    a.click();
+  };
 
   return (
     <div className="page">
       <Navbar />
 
       <div className="container">
-        <h1 className="title">
-          📅 Historical Monitoring (Live Firebase Logs)
-        </h1>
+        {/* HEADER */}
+        <div className="header">
+          <h1>📊 Sensor History</h1>
 
-        {/* DATE PICKER */}
-        <div className="calendar">
-          <label>Select Date:</label>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-          />
+          <div className="controls">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+            />
+
+            <button onClick={exportCSV}>⬇ Export CSV</button>
+          </div>
         </div>
 
-        {/* 🔴 LATEST READINGS */}
-        <div className="latestBox">
-          <div>🌡 Temperature: {latest.temperature} °C</div>
-          <div>💧 Humidity: {latest.humidity} %</div>
-          <div>🔥 Heat: {latest.heat} °C</div>
-          <div>☠ Ammonia: {latest.ammonia} ppm</div>
-        </div>
+        <p className="latestText">📡 Latest Readings</p>
 
-        {/* 📊 TABLE LOGS */}
-        <div className="logBox">
-          <h3>📡 Sensor Logs ({selectedDate})</h3>
+        {/* SUMMARY CARDS */}
+        {filtered.length > 0 && (
+          <div className="cards">
+            <div className="card">🌡 {filtered[0].temperature}°C</div>
+            <div className="card">💧 {filtered[0].humidity}%</div>
+            <div className="card">🔥 {filtered[0].heat}°C</div>
 
-          {records.length === 0 ? (
-            <p className="empty">No data available for this date</p>
-          ) : (
-            <div className="tableWrapper">
-              <table className="dataTable">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Time</th>
-                    <th>🌡 Temp (°C)</th>
-                    <th>💧 Humidity (%)</th>
-                    <th>🔥 Heat (°C)</th>
-                    <th>☠ Ammonia (ppm)</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {records.map((r, i) => (
-                    <tr key={i}>
-                      <td>{i + 1}</td>
-                      <td>{r.time_readable ?? "N/A"}</td>
-                      <td>{r.temperature}</td>
-                      <td>{r.humidity}</td>
-                      <td>{r.heat}</td>
-                      <td>{r.ammonia}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="card ammoniaCard">
+              ☠ {filtered[0].ammonia} ppm
+              <span
+                className={`tag ${
+                  filtered[0].ammonia > 10
+                    ? "danger"
+                    : filtered[0].ammonia > 6
+                    ? "warning"
+                    : "safe"
+                }`}
+              >
+                {filtered[0].ammonia > 10
+                  ? "Danger"
+                  : filtered[0].ammonia > 6
+                  ? "Warning"
+                  : "Safe"}
+              </span>
             </div>
+          </div>
+        )}
+
+        {/* DATA CARDS */}
+        <div className="dataSection">
+          {filtered.length === 0 ? (
+            <p className="empty">No data found</p>
+          ) : (
+            filtered.map((r, i) => (
+              <div key={i} className="dataCard">
+                <div className="top">
+                  <span>#{i + 1}</span>
+                  <span>{r.time}</span>
+                </div>
+
+                <div className="grid">
+                  <p>🌡 Temp: {r.temperature}°C</p>
+                  <p>💧 Humidity: {r.humidity}%</p>
+                  <p>🔥 Heat: {r.heat}°C</p>
+
+                  <div className="ammoniaBox">
+                    <p>☠ Ammonia: {r.ammonia} ppm</p>
+
+                    <span
+                      className={`tag ${
+                        r.ammonia > 10
+                          ? "danger"
+                          : r.ammonia > 6
+                          ? "warning"
+                          : "safe"
+                      }`}
+                    >
+                      {r.ammonia > 10
+                        ? "Danger"
+                        : r.ammonia > 6
+                        ? "Warning"
+                        : "Safe"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>
 
-      {/* ================= CSS ================= */}
+      {/* ===================== UI UPGRADE ONLY ===================== */}
       <style jsx>{`
         .page {
           min-height: 100vh;
-          background: #ecfdf5;
-          padding: 20px;
-          font-family: Arial;
+          padding: 16px;
+          font-family: system-ui;
+
+          /* STRONG VISIBLE FARM DASHBOARD BACKGROUND */
+          background: 
+            radial-gradient(circle at top left, #a7f3d0, transparent 55%),
+            radial-gradient(circle at bottom right, #bbf7d0, transparent 55%),
+            linear-gradient(135deg, #ecfdf5, #f0fdf4);
+
+          animation: fadeIn 0.6s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: scale(0.98);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
         }
 
         .container {
-          max-width: 1000px;
+          max-width: 950px;
           margin: auto;
         }
 
-        .title {
-          font-size: 22px;
-          font-weight: bold;
-          color: #065f46;
-          margin-bottom: 15px;
+        /* HEADER */
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 12px;
+
+          padding: 16px;
+          border-radius: 18px;
+
+          background: rgba(255, 255, 255, 0.75);
+          backdrop-filter: blur(14px);
+
+          box-shadow: 0 15px 35px rgba(0,0,0,0.08);
         }
 
-        .calendar {
+        h1 {
+          font-size: 22px;
+          font-weight: 900;
+          color: #064e3b;
+        }
+
+        .controls {
           display: flex;
           gap: 10px;
-          align-items: center;
-          margin-bottom: 15px;
         }
 
-        .calendar input {
-          padding: 8px;
-          border-radius: 8px;
-          border: 1px solid #ccc;
-        }
-
-        .latestBox {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 10px;
-          margin-bottom: 20px;
-          font-weight: bold;
-        }
-
-        .latestBox div {
-          background: white;
-          padding: 10px;
+        input {
+          padding: 8px 10px;
           border-radius: 10px;
-        }
-
-        .tableWrapper {
-          overflow-x: auto;
-        }
-
-        .dataTable {
-          width: 100%;
-          border-collapse: collapse;
+          border: 1px solid #cbd5e1;
           background: white;
-          border-radius: 10px;
-          overflow: hidden;
+          transition: 0.2s;
         }
 
-        .dataTable th {
-          background: #065f46;
+        input:focus {
+          outline: none;
+          border-color: #10b981;
+          box-shadow: 0 0 0 3px rgba(16,185,129,0.2);
+        }
+
+        button {
+          background: linear-gradient(135deg, #059669, #047857);
           color: white;
-          padding: 10px;
-          text-align: left;
+          padding: 8px 14px;
+          border-radius: 10px;
+          border: none;
+          cursor: pointer;
+
+          font-weight: 700;
+          box-shadow: 0 10px 20px rgba(5,150,105,0.25);
+          transition: 0.25s;
         }
 
-        .dataTable td {
-          padding: 10px;
-          border-bottom: 1px solid #eee;
+        button:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 15px 30px rgba(5,150,105,0.35);
         }
 
-        .dataTable tr:hover {
-          background: #f0fdf4;
+        /* SUMMARY */
+        .cards {
+          margin-top: 18px;
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 12px;
+        }
+
+        .card {
+          background: white;
+          padding: 14px;
+          border-radius: 16px;
+          text-align: center;
+          font-weight: 800;
+
+          box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+          transition: 0.25s;
+        }
+
+        .card:hover {
+          transform: translateY(-6px);
+        }
+
+        /* DATA */
+        .dataSection {
+          margin-top: 22px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .dataCard {
+          background: white;
+          padding: 14px;
+          border-radius: 16px;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+          transition: 0.25s;
+        }
+
+        .dataCard:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 18px 35px rgba(0,0,0,0.12);
+        }
+
+        .top {
+          display: flex;
+          justify-content: space-between;
+          font-weight: 800;
+          color: #047857;
+        }
+
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          margin-top: 10px;
+          font-size: 14px;
+          gap: 8px;
+        }
+
+        .ammoniaBox {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        /* TAGS */
+        .tag {
+          font-size: 11px;
+          padding: 3px 8px;
+          border-radius: 999px;
+          font-weight: 800;
+          width: fit-content;
+        }
+
+        .safe {
+          background: #22c55e;
+          color: white;
+        }
+
+        .warning {
+          background: #facc15;
+          color: #111827;
+        }
+
+        .danger {
+          background: #ef4444;
+          color: white;
         }
 
         .empty {
-          color: gray;
-          font-style: italic;
+          text-align: center;
+          color: #6b7280;
+          padding: 30px;
         }
 
-        @media (max-width: 600px) {
-          .latestBox {
-            grid-template-columns: 1fr;
+        @media (max-width: 768px) {
+          .cards {
+            grid-template-columns: repeat(2, 1fr);
+          }
+
+          .grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+
+          .header {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          button {
+            width: 100%;
           }
         }
       `}</style>

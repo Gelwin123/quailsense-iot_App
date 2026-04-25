@@ -13,9 +13,6 @@ export default function Navbar() {
 
   const router = useRouter();
 
-  /* =========================
-     🔐 FIREBASE AUTH LISTENER
-  ========================= */
   useEffect(() => {
     setIsClient(true);
 
@@ -26,9 +23,6 @@ export default function Navbar() {
     return () => unsubscribe();
   }, []);
 
-  /* =========================
-     🚪 LOGOUT
-  ========================= */
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -52,7 +46,6 @@ export default function Navbar() {
           <a href="/dashboard" className="link">Dashboard</a>
           <a href="/historical" className="link">Historical Data</a>
 
-          {/* Profile Button */}
           <button
             className="profile-btn"
             onClick={() => setDesktopDropdownOpen(!isDesktopDropdownOpen)}
@@ -60,7 +53,6 @@ export default function Navbar() {
             Profile
           </button>
 
-          {/* Desktop Dropdown */}
           {isDesktopDropdownOpen && (
             <div className="desktop-dropdown">
               <span className="dropdown-email">
@@ -90,7 +82,6 @@ export default function Navbar() {
             <span></span>
           </button>
 
-          {/* Mobile Dropdown */}
           {isMobileMenuOpen && (
             <div className="mobile-dropdown">
               <a href="/dashboard" className="dropdown-item">Dashboard</a>
@@ -110,7 +101,7 @@ export default function Navbar() {
         </>
       )}
 
-      {/* CSS (UNCHANGED - YOUR ORIGINAL) */}
+      {/* CSS (UNCHANGED + FIX ADDED ONLY) */}
       <style jsx>{`
         nav.navbar {
           background-color: #047857;
@@ -119,7 +110,9 @@ export default function Navbar() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          position: relative;
+          position: sticky; /* ✅ ADDED */
+          top: 0;          /* ✅ ADDED */
+          z-index: 1000;   /* ✅ ADDED */
           font-family: Arial, sans-serif;
           box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
@@ -133,7 +126,12 @@ export default function Navbar() {
         .logo-img { height: 40px; }
         .logo-text { font-size: 24px; font-weight: 800; }
 
-        .nav-links { display: flex; align-items: center; gap: 12px; position: relative; }
+        .nav-links {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          position: relative;
+        }
 
         .link, .profile-btn {
           padding: 8px 16px;
@@ -148,7 +146,6 @@ export default function Navbar() {
         .link { background-color: #059669; }
         .profile-btn { background-color: #059669; }
 
-        /* Desktop dropdown */
         .desktop-dropdown {
           position: absolute;
           top: 50px;
@@ -182,7 +179,6 @@ export default function Navbar() {
           color: #047857;
         }
 
-        /* Hamburger */
         .hamburger {
           display: none;
           flex-direction: column;
@@ -201,7 +197,6 @@ export default function Navbar() {
           border-radius: 2px;
         }
 
-        /* Mobile dropdown */
         .mobile-dropdown {
           position: absolute;
           top: 60px;
