@@ -168,8 +168,9 @@ export default function HistoricalPage() {
       <style jsx>{`
         .page {
           min-height: 100vh;
-          padding: 16px;
+           padding-top: 80px;
           font-family: system-ui;
+          
 
           /* STRONG VISIBLE FARM DASHBOARD BACKGROUND */
           background: 

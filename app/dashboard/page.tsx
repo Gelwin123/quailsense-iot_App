@@ -159,13 +159,12 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-lime-100 p-4 page">
       <Navbar />
-
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-6 max-w-6xl mx-auto header">
-        <h1 className="text-2xl font-bold text-green-900">
-          🐤 Smart Poultry Dashboard
-        </h1>
-      </div>
+{/* HEADER */}
+<div className="flex justify-center items-center mb-6 w-full header">
+  <h1 className="text-lg md:text-xl font-bold text-green-900 text-center px-4">
+    🐤 Smart Poultry Dashboard
+  </h1>
+</div>
 
       {/* SMART INSIGHT */}
       <div className={`smartInsight ${warning ? "danger" : "safe"}`}>
@@ -223,6 +222,7 @@ export default function DashboardPage() {
         /* PAGE ANIMATION */
         .page {
           animation: pageIn 0.6s ease-out;
+           padding-top: 80px;
         }
 
         @keyframes pageIn {

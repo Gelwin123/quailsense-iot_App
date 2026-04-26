@@ -4,239 +4,284 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { signOut, onAuthStateChanged } from "firebase/auth";
+import { Home, BarChart3, User } from "lucide-react";
 
 export default function Navbar() {
-  const [isDesktopDropdownOpen, setDesktopDropdownOpen] = useState(false);
-  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isClient, setIsClient] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
 
   const router = useRouter();
 
   useEffect(() => {
-    setIsClient(true);
-
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-    });
-
-    return () => unsubscribe();
+    return onAuthStateChanged(auth, setUser);
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      router.push("/login");
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
+  const logout = async () => {
+    await signOut(auth);
+    router.push("/login");
   };
 
   return (
-    <nav className="navbar">
-      {/* Logo + Name */}
-      <div className="logo-container">
-        <img src="icon/quaillogo.png" alt="QuailSense" className="logo-img" />
-        <span className="logo-text">QuailSense</span>
-      </div>
+    <>
+      {/* NAVBAR */}
+      <nav className="nav">
 
-      {/* Desktop Links */}
-      {isClient && (
-        <div className="nav-links">
-          <a href="/dashboard" className="link">Dashboard</a>
-          <a href="/historical" className="link">Historical Data</a>
+        {/* LOGO */}
+        <div className="logo">
+          <img src="/icon/quaillogo.png" />
+          <span>QuailSense</span>
+        </div>
 
-          <button
-            className="profile-btn"
-            onClick={() => setDesktopDropdownOpen(!isDesktopDropdownOpen)}
-          >
-            Profile
-          </button>
+        {/* DESKTOP LINKS */}
+        <div className="links">
+          <a href="/dashboard">Dashboard</a>
+          <a href="/historical">Historical</a>
 
-          {isDesktopDropdownOpen && (
-            <div className="desktop-dropdown">
-              <span className="dropdown-email">
-                {user?.email ?? "Not logged in"}
-              </span>
+          <button onClick={() => setOpen(!open)}>Profile</button>
 
-              <button
-                onClick={handleLogout}
-                className="dropdown-item logout-btn"
-              >
-                Log Out
-              </button>
+          {open && (
+            <div className="dropdown">
+              <p>{user?.email || "Not logged in"}</p>
+              <button onClick={logout}>Logout</button>
             </div>
           )}
         </div>
-      )}
 
-      {/* Hamburger */}
-      {isClient && (
+        {/* HAMBURGER */}
+        <button
+          className="burger"
+          onClick={() => setMobileOpen(!mobileOpen)}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+      </nav>
+
+      {/* MOBILE MENU */}
+      {mobileOpen && (
         <>
-          <button
-            className="hamburger"
-            onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            <span></span>
-            <span></span>
-            <span></span>
-          </button>
+          <div
+            className="overlay"
+            onClick={() => setMobileOpen(false)}
+          />
 
-          {isMobileMenuOpen && (
-            <div className="mobile-dropdown">
-              <a href="/dashboard" className="dropdown-item">Dashboard</a>
-              <a href="/historical" className="dropdown-item">Historical Data</a>
+          <div className="mobile">
+            <a href="/dashboard">
+            <Home size={17} />
+            <span>Dashboard</span>
+          </a>
 
-              <div className="dropdown-divider"></div>
+          <a href="/historical">
+            <BarChart3 size={17} />
+            <span>Historical</span>
+          </a>
 
-              <span className="dropdown-email">
-                {user?.email ?? "Not logged in"}
-              </span>
+            <p className="email">{user?.email || "Not logged in"}</p>
 
-              <button onClick={handleLogout} className="dropdown-item logout-btn">
-                Log Out
-              </button>
-            </div>
-          )}
+            <button onClick={logout} className="logout">
+              Logout
+            </button>
+          </div>
         </>
       )}
 
-      {/* CSS (UNCHANGED + FIX ADDED ONLY) */}
+      {/* ================= CSS ================= */}
       <style jsx>{`
-        nav.navbar {
-          background-color: #047857;
-          color: white;
-          padding: 12px 24px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          position: sticky; /* ✅ ADDED */
-          top: 0;          /* ✅ ADDED */
-          z-index: 1000;   /* ✅ ADDED */
-          font-family: Arial, sans-serif;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        /* GLOBAL RESET */
+        :global(body, html) {
+          margin: 0;
+          padding: 0;
+          width: 100%;
+          overflow-x: hidden;
         }
 
-        .logo-container {
+        * {
+          box-sizing: border-box;
+        }
+
+        /* NAVBAR */
+        .nav {
+          position: fixed;
+          top: 0;
+          left: 0;
+
+          width: 100vw;
+          height: 64px;
+
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          padding: 0 20px;
+
+          background: rgba(4,120,87,0.95);
+          backdrop-filter: blur(14px);
+
+          z-index: 9999;
+
+          box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+        }
+
+        /* LOGO */
+        .logo {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-shrink: 0;
+        }
+
+        .logo img {
+          height: 38px;
+        }
+
+        .logo span {
+          font-size: 18px;
+          font-weight: 800;
+          color: white;
+        }
+
+        /* DESKTOP LINKS */
+        .links {
           display: flex;
           align-items: center;
           gap: 10px;
         }
 
-        .logo-img { height: 40px; }
-        .logo-text { font-size: 24px; font-weight: 800; }
+        .links a,
+        .links button {
+          padding: 8px 12px;
+          border-radius: 10px;
 
-        .nav-links {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          position: relative;
-        }
-
-        .link, .profile-btn {
-          padding: 8px 16px;
-          border-radius: 8px;
+          font-size: 14px;
           font-weight: 600;
+
+          color: white;
           text-decoration: none;
-          color: white;
-          border: none;
+
+          background: rgba(255,255,255,0.12);
+          border: 1px solid rgba(255,255,255,0.15);
+
           cursor: pointer;
         }
 
-        .link { background-color: #059669; }
-        .profile-btn { background-color: #059669; }
-
-        .desktop-dropdown {
+        /* DROPDOWN */
+        .dropdown {
           position: absolute;
-          top: 50px;
-          right: 0;
-          width: 200px;
-          background-color: white;
-          color: #1f2937;
-          border-radius: 12px;
-          box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-          padding: 10px;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          z-index: 50;
-        }
+          top: 70px;
+          right: 16px;
 
-        .desktop-dropdown .dropdown-item {
-          background-color: #ef4444;
-          color: white;
-          padding: 8px;
-          border-radius: 8px;
-          text-align: center;
-          font-weight: 600;
-          cursor: pointer;
-          border: none;
-        }
+          background: white;
+          color: black;
 
-        .desktop-dropdown .dropdown-email {
-          text-align: center;
-          font-weight: 600;
-          color: #047857;
-        }
-
-        .hamburger {
-          display: none;
-          flex-direction: column;
-          justify-content: space-between;
-          width: 24px;
-          height: 18px;
-          border: none;
-          background: transparent;
-          cursor: pointer;
-        }
-
-        .hamburger span {
-          height: 3px;
-          width: 100%;
-          background-color: white;
-          border-radius: 2px;
-        }
-
-        .mobile-dropdown {
-          position: absolute;
-          top: 60px;
-          right: 12px;
-          width: 200px;
-          background-color: white;
-          color: #1f2937;
-          border-radius: 12px;
           padding: 12px;
+          border-radius: 12px;
+
           display: flex;
           flex-direction: column;
-          gap: 8px;
-          box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+          gap: 10px;
+
+          box-shadow: 0 20px 40px rgba(0,0,0,0.3);
         }
 
-        .mobile-dropdown .dropdown-item {
-          background-color: #059669;
+        .dropdown button {
+          background: #ef4444;
           color: white;
+          border: none;
           padding: 8px;
-          border-radius: 8px;
-          text-align: center;
-          font-weight: 600;
+          border-radius: 10px;
+          cursor: pointer;
+        }
+
+        /* HAMBURGER FIX (IMPORTANT PART) */
+        .burger {
+          display: none;
+
+          position: absolute;
+          right: 16px;   /* 🔥 FIX ALIGNMENT */
+
+          flex-direction: column;
+          gap: 4px;
+
+          background: none;
+          border: none;
+          cursor: pointer;
+        }
+
+        .burger span {
+          width: 26px;
+          height: 3px;
+          background: white;
+          border-radius: 3px;
+        }
+
+        /* OVERLAY */
+        .overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.4);
+          z-index: 9998;
+        }
+
+        /* MOBILE MENU */
+        .mobile {
+          position: fixed;
+          top: 64px;
+          right: 10px;
+
+          width: 240px;
+
+          background: rgba(255,255,255,0.95);
+          backdrop-filter: blur(16px);
+
+          padding: 14px;
+          border-radius: 14px;
+
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+
+          z-index: 9999;
+
+          box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+        }
+
+        .mobile a {
+          padding: 10px;
+          background: #f3f4f6;
+          border-radius: 10px;
           text-decoration: none;
-        }
-
-        .mobile-dropdown .logout-btn {
-          background-color: #ef4444;
-        }
-
-        .mobile-dropdown .dropdown-email {
-          text-align: center;
+          color: black;
           font-weight: 600;
-          color: #047857;
         }
 
+        .email {
+          font-size: 12px;
+          color: #047857;
+          font-weight: 600;
+        }
+
+        .logout {
+          background: #ef4444;
+          color: white;
+          border: none;
+          padding: 10px;
+          border-radius: 10px;
+          font-weight: 600;
+        }
+
+        /* RESPONSIVE */
         @media (max-width: 768px) {
-          .nav-links a, .profile-btn { display: none; }
-          .hamburger { display: flex; }
+          .links {
+            display: none;
+          }
+
+          .burger {
+            display: flex;
+          }
         }
       `}</style>
-    </nav>
+    </>
   );
 }
